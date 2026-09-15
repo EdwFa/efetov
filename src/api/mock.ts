@@ -1,9 +1,18 @@
-import { CREATE_BLOCKS, fieldKey } from "@/entities/crf/blocks";
+import { CRF_BLOCK_ORDER } from "@/entities/crf/blocks";
+import { applyBlockValues } from "@/entities/crf/merge";
+import { emptyBlocks, fieldKey, fieldsOf } from "@/entities/crf/schema";
 import { centerCode, nextCode, nextPatientId } from "@/entities/patient/code";
+import {
+  formatLock,
+  LOCK_FREE,
+  lockOwnerId,
+} from "@/entities/patient/lock";
 import type { Patient } from "@/entities/patient/types";
+import { can, canEditBlock, type Permission } from "@/entities/user/roles";
 import { ROLE_LABELS, type SessionUser } from "@/entities/user/types";
 import { now } from "@/shared/lib/dates";
 import type { AppApi, CreatePatientInput, RuntimeSnapshot } from "./client";
+import { ForbiddenError } from "./errors";
 import { SEED } from "./mock/seed";
 
 const STORAGE_KEY = "efetovRuntimeV1";
@@ -62,6 +71,43 @@ function pushAudit(actor: SessionUser, action: string, details: string) {
   };
 }
 
+function deny(actor: SessionUser, permission: Permission, details?: string): never {
+  const error = new ForbiddenError(permission, details);
+  pushAudit(actor, "Отказ в доступе", error.message);
+  emit();
+  throw error;
+}
+
+function requirePermission(actor: SessionUser, permission: Permission) {
+  if (!can(actor.role, permission)) deny(actor, permission);
+}
+
+function updatePatient(
+  patientId: string,
+  mapper: (patient: Patient) => Patient
+): Patient | null {
+  let updated: Patient | null = null;
+  const patients = runtime.patients.map((patient) => {
+    if (patient.id !== patientId) return patient;
+    updated = mapper(patient);
+    return updated;
+  });
+  if (!updated) return null;
+  runtime = { ...runtime, patients };
+  return updated;
+}
+
+function releaseLocksHeldBy(userId: string) {
+  runtime = {
+    ...runtime,
+    patients: runtime.patients.map((patient) =>
+      lockOwnerId(patient.lock) === userId
+        ? { ...patient, lock: LOCK_FREE }
+        : patient
+    ),
+  };
+}
+
 export const mockApi: AppApi = {
   listDemoUsers() {
     return SEED.users;
@@ -104,23 +150,33 @@ export const mockApi: AppApi = {
     emit();
   },
 
+  recordExport(actor, details) {
+    requirePermission(actor, "export.run");
+    pushAudit(actor, "Экспорт", details);
+    emit();
+  },
+
   createPatient(actor, input: CreatePatientInput) {
+    requirePermission(actor, "patient.create");
     const id = nextPatientId(runtime.patients.map((item) => item.id));
     const code =
       input.code.trim() || nextCode(id, centerCode(input.center));
     const operationDate = input.operationDate.trim() || "—";
-    const blocks: Patient["blocks"] = {};
-    (Object.entries(CREATE_BLOCKS) as Array<[string, string[]]>).forEach(
-      ([block, fields]) => {
-        blocks[block] = fields.map((name) => ({
-          name,
-          value:
-            block === "Послеоперационные наблюдения"
-              ? ""
-              : input.values[fieldKey(block, name)] || "",
-        }));
-      }
-    );
+    const blocks = emptyBlocks();
+    CRF_BLOCK_ORDER.forEach((block) => {
+      const stored = fieldsOf(block).map((field) => ({
+        key: field.key,
+        name: field.label,
+        value:
+          block === "Послеоперационные наблюдения"
+            ? ""
+            : input.values[field.key] ||
+              input.values[fieldKey(block, field.label)] ||
+              "",
+        hint: field.hint,
+      }));
+      blocks[block] = applyBlockValues(block, stored, input.values);
+    });
     const createdAt = now();
     const patient: Patient = {
       id,
@@ -134,7 +190,7 @@ export const mockApi: AppApi = {
       createdByName: actor.name,
       createdAt,
       updatedAt: createdAt,
-      lock: "нет",
+      lock: LOCK_FREE,
       blocks,
     };
     runtime = { ...runtime, patients: [...runtime.patients, patient] };
@@ -148,6 +204,7 @@ export const mockApi: AppApi = {
   },
 
   deletePatient(actor, id) {
+    requirePermission(actor, "patient.delete");
     const target = runtime.patients.find((item) => item.id === id);
     if (!target) return null;
     runtime = {
@@ -164,19 +221,30 @@ export const mockApi: AppApi = {
   },
 
   savePatientBlock(actor, patientId, block, values) {
+    if (!canEditBlock(actor.role, block)) {
+      deny(
+        actor,
+        "crf.edit",
+        `Редактирование блока «${block}» недоступно для текущей роли`
+      );
+    }
     const target = runtime.patients.find((item) => item.id === patientId);
     if (!target) return null;
-    const patients = runtime.patients.map((patient) => {
-      if (patient.id !== patientId) return patient;
+    const owner = lockOwnerId(target.lock);
+    if (owner && owner !== actor.id) {
+      deny(
+        actor,
+        "crf.edit",
+        `Карточка ${target.code} редактируется пользователем ${owner}`
+      );
+    }
+    const updated = updatePatient(patientId, (patient) => {
       const nextBlocks = {
         ...patient.blocks,
-        [block]: (patient.blocks[block] || []).map((field) => ({
-          ...field,
-          value: values[field.name] ?? field.value,
-        })),
+        [block]: applyBlockValues(block, patient.blocks[block] || [], values),
       };
       const dateField = nextBlocks["Операционные данные"]?.find(
-        (field) => field.name === "Дата операции"
+        (field) => field.name === "Дата операции" || field.key === "opDate"
       );
       return {
         ...patient,
@@ -185,17 +253,84 @@ export const mockApi: AppApi = {
         updatedAt: now(),
       };
     });
-    runtime = { ...runtime, patients };
+    if (!updated) return null;
     pushAudit(
       actor,
       "Редактирование блока",
       `Пациент ${target.code}: обновлен блок «${block}»`
     );
     emit();
-    return patients.find((item) => item.id === patientId) || null;
+    return updated;
+  },
+
+  lockPatient(actor, patientId) {
+    const target = runtime.patients.find((item) => item.id === patientId);
+    if (!target) return null;
+    const owner = lockOwnerId(target.lock);
+    if (owner && owner !== actor.id && actor.role !== "leader") {
+      deny(
+        actor,
+        "crf.edit",
+        `Карточка ${target.code} уже редактируется пользователем ${owner}`
+      );
+    }
+    if (owner === actor.id) return target;
+    const updated = updatePatient(patientId, (patient) => ({
+      ...patient,
+      lock: formatLock(actor.id),
+    }));
+    if (!updated) return null;
+    pushAudit(
+      actor,
+      "Блокировка карты",
+      owner && owner !== actor.id
+        ? `Карточка ${target.code}: блокировка перехвачена у ${owner}`
+        : `Карточка ${target.code} взята в работу`
+    );
+    emit();
+    return updated;
+  },
+
+  unlockPatient(actor, patientId) {
+    const target = runtime.patients.find((item) => item.id === patientId);
+    if (!target) return null;
+    const owner = lockOwnerId(target.lock);
+    if (!owner) return target;
+    if (owner !== actor.id && actor.role !== "leader") {
+      deny(
+        actor,
+        "crf.edit",
+        `Снять блокировку карточки ${target.code} может только ${owner} или руководитель`
+      );
+    }
+    const updated = updatePatient(patientId, (patient) => ({
+      ...patient,
+      lock: LOCK_FREE,
+    }));
+    if (!updated) return null;
+    pushAudit(
+      actor,
+      "Снятие блокировки",
+      `Карточка ${target.code}: блокировка снята`
+    );
+    emit();
+    return updated;
+  },
+
+  endSession(actor, reason) {
+    releaseLocksHeldBy(actor.id);
+    pushAudit(
+      actor,
+      reason === "idle" ? "Выход по неактивности" : "Выход из системы",
+      reason === "idle"
+        ? "Автоматическое завершение сессии после 15 минут бездействия"
+        : "Пользователь завершил сессию"
+    );
+    emit();
   },
 
   addDemoFile(actor) {
+    requirePermission(actor, "files.manage");
     const month = ["Июнь", "Июль", "Август"][runtime.files.length % 3];
     const name = `Демо-файл ${runtime.files.length + 1}.pdf`;
     const file = {
@@ -212,6 +347,7 @@ export const mockApi: AppApi = {
   },
 
   deleteFile(actor, name) {
+    requirePermission(actor, "files.manage");
     runtime = {
       ...runtime,
       files: runtime.files.filter((item) => item.name !== name),

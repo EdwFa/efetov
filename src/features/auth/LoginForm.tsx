@@ -1,13 +1,15 @@
 import { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "@/api/mock";
 import { ROLE_LABELS } from "@/entities/user/types";
 import { Badge, Button, Card, Label, TextInput } from "@/shared/ui";
+import { returnPathFromState } from "./redirect";
 import { useAuth } from "./useAuth";
 
 export function LoginForm() {
   const { login, loginError } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -16,7 +18,7 @@ export function LoginForm() {
     const password = (form.elements.namedItem("password") as HTMLInputElement)
       .value;
     if (login(loginValue.trim(), password.trim())) {
-      navigate("/journal", { replace: true });
+      navigate(returnPathFromState(location.state), { replace: true });
     }
   };
 
@@ -68,7 +70,9 @@ export function LoginForm() {
 export function QuickRoleCards() {
   const { quickLogin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const users = api.listDemoUsers();
+  const nextPath = returnPathFromState(location.state);
 
   return (
     <section className="grid gap-4">
@@ -86,7 +90,7 @@ export function QuickRoleCards() {
               type="button"
               onClick={() => {
                 if (quickLogin(item.login, item.password)) {
-                  navigate("/journal", { replace: true });
+                  navigate(nextPath, { replace: true });
                 }
               }}
             >

@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { api } from "@/api/mock";
 import { useAuth } from "@/features/auth/useAuth";
 import { Button } from "@/shared/ui";
@@ -7,7 +6,6 @@ import { useToast } from "@/shared/ui/toast";
 export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { user, roleName, logout } = useAuth();
   const { showToast } = useToast();
-  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
@@ -33,7 +31,6 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
             variant="secondary"
             onClick={() => {
               logout("idle");
-              navigate("/login", { replace: true });
               showToast(
                 "Сессия завершена из-за неактивности (15 минут по ТЗ)."
               );
@@ -45,7 +42,6 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
             variant="danger"
             onClick={() => {
               logout("manual");
-              navigate("/login", { replace: true });
             }}
           >
             Выйти

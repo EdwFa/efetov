@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/useAuth";
 import { IDLE_TIMEOUT_MS } from "@/shared/config/brand";
 import { useToast } from "@/shared/ui/toast";
@@ -9,7 +8,6 @@ const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchst
 export function IdleTimeout() {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -17,7 +15,6 @@ export function IdleTimeout() {
 
     const expire = () => {
       logout("idle");
-      navigate("/login", { replace: true });
       showToast("Сессия завершена из-за неактивности (15 минут).");
     };
 
@@ -32,7 +29,7 @@ export function IdleTimeout() {
       if (timer.current) window.clearTimeout(timer.current);
       ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, arm));
     };
-  }, [user, logout, navigate, showToast]);
+  }, [user, logout, showToast]);
 
   return null;
 }

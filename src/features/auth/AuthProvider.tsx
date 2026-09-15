@@ -67,11 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(
-    (_reason: "manual" | "idle" = "manual") => {
+    (reason: "manual" | "idle" = "manual") => {
+      if (user) api.endSession(user, reason);
       setCurrentUser(null);
       setLoginError("");
     },
-    [setCurrentUser]
+    [setCurrentUser, user]
   );
 
   const value = useMemo<AuthContextValue>(

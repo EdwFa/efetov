@@ -1,46 +1,107 @@
-# Getting Started with Create React App
+# Система поддержки клинического исследования
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Интерактивный фронтенд-прототип CRF-системы для многоцентрового клинического исследования (колоректальный рак). Это рабочий React-порт HTML-прототипа из `TZ/`: журнал пациентов, карточка с пятью блоками CRF, файлы, аудит и выгрузки Excel/CSV.
 
-## Available Scripts
+Данные живут в браузере (`localStorage`). Бэкенда нет — mock API имитирует права, блокировки и журнал действий.
 
-In the project directory, you can run:
+## Стек
 
-### `npm start`
+- Vite 6, React 19, TypeScript, React Router 7
+- Tailwind CSS 3
+- Mock-хранилище на `useSyncExternalStore` + `localStorage`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Запуск
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Нужны Node.js 18+ и npm.
 
-### `npm test`
+```bash
+npm install
+npm start
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Приложение открывается на [http://localhost:3000](http://localhost:3000).
 
-### `npm run build`
+| Команда | Назначение |
+| --- | --- |
+| `npm start` / `npm run dev` | dev-сервер Vite, порт 3000 |
+| `npm run build` | проверка TypeScript и production-сборка в `dist/` |
+| `npm run preview` | просмотр собранного `dist/` |
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Сессия и демо-данные сохраняются локально. Кнопка **«Сбросить демо-данные»** в шапке возвращает seed (пациенты, файлы, аудит).
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Тестовые учётки
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+| Роль | Логин | Пароль |
+| --- | --- | --- |
+| Врач стационара | `stationary_doctor` | `Doctor123` |
+| Врач амбулатории | `ambulatory_doctor` | `Doctor123` |
+| Руководитель исследования | `manager` | `Manager123` |
 
-### `npm run eject`
+На экране входа есть быстрый вход по карточкам ролей.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## Что умеет прототип
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- **Вход и сессия.** После логина возврат на исходный URL. Простой выход по кнопке. Автовыход через 15 минут бездействия (кнопка **«Timeout 15 мин»** имитирует то же событие). Оба варианта пишутся в аудит.
+- **Общий журнал.** Фильтры, сортировка, создание и удаление карт (по роли), колонка блокировки.
+- **Карточка пациента.** Пять блоков CRF. Неполный seed дополняется полной схемой полей при открытии; неизвестные поля не теряются. ИМТ считается из роста и веса.
+- **Блокировка.** Карту можно взять в работу. Чужой lock делает поля только для чтения; руководитель может снять блокировку или перехватить её. Сохранение через API отклоняется, пока карту держит другой пользователь.
+- **Файлы.** Общее хранилище с демо-структурой по месяцам и ролям.
+- **Аудит.** Неизменяемый журнал действий, только для руководителя.
+- **Выгрузки.** Итоговая Excel-таблица по шаблону заголовков и статистический срез с учётом фильтров журнала. CSV — дополнительная опция. Колонки заполняются по точному заголовку поля, без нечёткого `includes()`. Персональные поля (ФИО, телефоны, адрес) в выгрузку не попадают.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Права по ролям
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+| | Стационар | Амбулатория | Руководитель |
+| --- | :---: | :---: | :---: |
+| Журнал, просмотр карт | да | да | да |
+| Создание карты | да | нет | да |
+| Удаление карты | нет | нет | да |
+| CRF: общие / анамнез / предоперация / операция | просмотр и правка | просмотр общих и анамнеза | всё |
+| CRF: послеоперационные наблюдения | нет | просмотр и правка | всё |
+| Файлы: скачивание | да | да | да |
+| Файлы: загрузка / удаление | нет | нет | да |
+| Аудит и Excel-выгрузки | нет | нет | да |
 
-## Learn More
+Если руководитель правит карту, созданную другим пользователем, система запрашивает подтверждение.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Маршруты
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+| Путь | Экран |
+| --- | --- |
+| `/login` | Вход |
+| `/journal` | Общий журнал |
+| `/patients/new` | Создание карты |
+| `/patients/:id` | Карточка CRF |
+| `/files` | Файловое хранилище |
+| `/audit` | Аудит |
+
+## Структура `src`
+
+Слои (сверху вниз): `app` → `pages` → `features` → `entities` / `api` → `shared`.
+
+```
+src/
+  app/          маршруты, оболочка, idle-timeout
+  pages/        тонкие экраны
+  features/     журнал, карточка, файлы, аудит, экспорт, auth
+  entities/     роли, CRF-схема, пациент, файлы, аудит
+  api/          контракт client.ts и mock-реализация
+  shared/       UI-кит, даты, выгрузки
+```
+
+Ключевое:
+
+- `entities/user/roles.ts` — матрица прав и доступ к блокам CRF
+- `entities/crf/schema.ts` — ключи полей, подписи, заголовки Excel, aliases
+- `api/mock.ts` — проверки прав, lock, аудит
+- `api/mock/seed.ts` — демо-пациенты, файлы, шаблон выгрузки
+
+Ключи `localStorage`: `efetovSessionUser` (сессия), `efetovRuntimeV1` (пациенты, файлы, аудит).
+
+## Папка `TZ/`
+
+Исходный HTML-прототип и постановка (описание системы, вопросы к заказчику). Это UX-референс, в `src` он не подмешивается. Для просмотра старого прототипа достаточно открыть `TZ/index.html` в браузере.
+
+## Ограничения
+
+Это кликабельный прототип, не промышленная система: нет сервера, авторизации вне браузера, прикрепления файлов к пациенту и миграции Excel в БД. Открытые вопросы к заказчику — в `TZ/Вопросы_к_Заказчику.md`.

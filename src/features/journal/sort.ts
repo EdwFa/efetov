@@ -16,6 +16,7 @@ export function valueForSort(patient: Patient, key: string): string | number {
   if (key === "createdAt") return normalizeDateTime(patient.createdAt);
   if (key === "createdBy") return patient.createdByName || patient.createdBy || "";
   if (key === "updatedAt") return normalizeDateTime(patient.updatedAt);
+  if (key === "lock") return patient.lock || "";
   return (patient as unknown as Record<string, string>)[key] || "";
 }
 

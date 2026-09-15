@@ -7,7 +7,8 @@ export type Permission =
   | "files.download"
   | "files.manage"
   | "audit.view"
-  | "export.run";
+  | "export.run"
+  | "crf.edit";
 
 const MATRIX: Record<Role, Permission[]> = {
   stationary: ["patient.create", "files.download"],

@@ -23,6 +23,7 @@ export interface AppApi {
   subscribe(listener: () => void): () => void;
   resetDemoData(): void;
   addAudit(actor: SessionUser, action: string, details: string): void;
+  recordExport(actor: SessionUser, details: string): void;
   createPatient(actor: SessionUser, input: CreatePatientInput): Patient;
   deletePatient(actor: SessionUser, id: string): Patient | null;
   savePatientBlock(
@@ -31,6 +32,9 @@ export interface AppApi {
     block: string,
     values: Record<string, string>
   ): Patient | null;
+  lockPatient(actor: SessionUser, patientId: string): Patient | null;
+  unlockPatient(actor: SessionUser, patientId: string): Patient | null;
+  endSession(actor: SessionUser, reason: "manual" | "idle"): void;
   addDemoFile(actor: SessionUser): StoredFile;
   deleteFile(actor: SessionUser, name: string): void;
 }
