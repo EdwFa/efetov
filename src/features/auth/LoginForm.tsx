@@ -1,6 +1,7 @@
-import { FormEvent } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "@/api/mock";
+import type { DemoUser } from "@/entities/user/types";
 import { ROLE_LABELS } from "@/entities/user/types";
 import { Badge, Button, Card, Label, TextInput } from "@/shared/ui";
 import { returnPathFromState } from "./redirect";
@@ -11,13 +12,13 @@ export function LoginForm() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
     const loginValue = (form.elements.namedItem("login") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement)
       .value;
-    if (login(loginValue.trim(), password.trim())) {
+    if (await login(loginValue.trim(), password.trim())) {
       navigate(returnPathFromState(location.state), { replace: true });
     }
   };
@@ -71,8 +72,12 @@ export function QuickRoleCards() {
   const { quickLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const users = api.listDemoUsers();
+  const [users, setUsers] = useState<DemoUser[]>([]);
   const nextPath = returnPathFromState(location.state);
+
+  useEffect(() => {
+    void api.listDemoUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
 
   return (
     <section className="grid gap-4">
@@ -88,8 +93,8 @@ export function QuickRoleCards() {
             <Button
               variant="secondary"
               type="button"
-              onClick={() => {
-                if (quickLogin(item.login, item.password)) {
+              onClick={async () => {
+                if (await quickLogin(item.login, item.password)) {
                   navigate(nextPath, { replace: true });
                 }
               }}

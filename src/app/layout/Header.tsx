@@ -20,9 +20,15 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
           </Button>
           <Button
             variant="secondary"
-            onClick={() => {
-              api.resetDemoData();
-              showToast("Демо-данные сброшены");
+            onClick={async () => {
+              try {
+                await api.resetDemoData();
+                showToast("Демо-данные сброшены");
+              } catch (error) {
+                showToast(
+                  error instanceof Error ? error.message : "Не удалось сбросить данные"
+                );
+              }
             }}
           >
             Сбросить демо-данные

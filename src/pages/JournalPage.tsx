@@ -27,7 +27,7 @@ export function JournalPage() {
   } = useJournal();
   const [exportModal, setExportModal] = useState<"final" | "slice" | null>(null);
 
-  const deletePatient = (id: string) => {
+  const deletePatient = async (id: string) => {
     if (!user) return;
     const target = patients.find((item) => item.id === id);
     if (!target) return;
@@ -38,17 +38,17 @@ export function JournalPage() {
     ) {
       return;
     }
-    const deleted = tryApi(
+    const deleted = await tryApi(
       () => api.deletePatient(user, id),
       (error) => showToast(error.message)
     );
     if (deleted.ok) showToast("Карточка удалена из демо-данных");
   };
 
-  const performExport = (format: "excel" | "csv") => {
+  const performExport = async (format: "excel" | "csv") => {
     if (!user || !exportModal) return;
     const rows = exportModal === "slice" ? filteredPatients : patients;
-    const recorded = tryApi(
+    const recorded = await tryApi(
       () =>
         api.recordExport(
           user,

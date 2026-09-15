@@ -39,10 +39,10 @@ export function CreatePatientForm({
     [center, nextId]
   );
 
-  const onSubmit = (event: FormEvent) => {
+  const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!user) return;
-    const created = tryApi(
+    const created = await tryApi(
       () =>
         api.createPatient(user, {
           code,

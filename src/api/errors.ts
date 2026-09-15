@@ -24,12 +24,12 @@ export function isForbiddenError(error: unknown): error is ForbiddenError {
   return error instanceof ForbiddenError;
 }
 
-export function tryApi<T>(
-  fn: () => T,
+export async function tryApi<T>(
+  fn: () => Promise<T> | T,
   onForbidden: (error: ForbiddenError) => void
-): { ok: true; value: T } | { ok: false } {
+): Promise<{ ok: true; value: T } | { ok: false }> {
   try {
-    return { ok: true, value: fn() };
+    return { ok: true, value: await fn() };
   } catch (error) {
     if (isForbiddenError(error)) {
       onForbidden(error);

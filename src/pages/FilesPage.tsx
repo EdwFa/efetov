@@ -20,9 +20,9 @@ export function FilesPage() {
       />
       <FileToolbar
         canManage={pwr.canFilesManage}
-        onUpload={() => {
+        onUpload={async () => {
           if (!user) return;
-          const added = tryApi(
+          const added = await tryApi(
             () => api.addDemoFile(user),
             (error) => showToast(error.message)
           );
@@ -38,9 +38,9 @@ export function FilesPage() {
         files={files}
         canManage={pwr.canFilesManage}
         onDownload={() => showToast("Скачивание файла — демо-действие")}
-        onDelete={(name) => {
+        onDelete={async (name) => {
           if (!user) return;
-          const removed = tryApi(
+          const removed = await tryApi(
             () => api.deleteFile(user, name),
             (error) => showToast(error.message)
           );

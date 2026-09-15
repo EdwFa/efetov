@@ -3,64 +3,81 @@ import {
   ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
 import { api } from "@/api/mock";
 import { powers } from "@/entities/user/roles";
 import { ROLE_LABELS, type SessionUser } from "@/entities/user/types";
-import { loadSession, saveSession } from "./session";
+import { loadSession, loadToken, saveSession, saveToken } from "./session";
 
 interface AuthContextValue {
   user: SessionUser | null;
   roleName: string;
   loginError: string;
   pwr: ReturnType<typeof powers>;
-  login: (loginValue: string, password: string) => boolean;
-  quickLogin: (loginValue: string, password: string) => boolean;
+  login: (loginValue: string, password: string) => Promise<boolean>;
+  quickLogin: (loginValue: string, password: string) => Promise<boolean>;
   logout: (reason?: "manual" | "idle") => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<SessionUser | null>(loadSession);
+  const [user, setUser] = useState<SessionUser | null>(() =>
+    loadToken() ? loadSession() : null
+  );
   const [loginError, setLoginError] = useState("");
 
   const setCurrentUser = useCallback((next: SessionUser | null) => {
     setUser(next);
     saveSession(next);
+    if (!next) saveToken(null);
   }, []);
 
+  useEffect(() => {
+    if (user && loadToken()) {
+      void api.refreshRuntime().catch(() => undefined);
+    }
+  }, [user]);
+
   const loginWithUser = useCallback(
-    (found: SessionUser, details: string) => {
+    (found: SessionUser) => {
       setCurrentUser(found);
       setLoginError("");
-      api.addAudit(found, "Вход в систему", details);
     },
     [setCurrentUser]
   );
 
   const login = useCallback(
-    (loginValue: string, password: string) => {
-      const found = api.authenticate(loginValue, password);
+    async (loginValue: string, password: string) => {
+      const found = await api.authenticate(
+        loginValue,
+        password,
+        "Успешная аутентификация"
+      );
       if (!found) {
         setLoginError(
           "Неверный логин или пароль. Используйте тестовые учетные записи из карточек ниже."
         );
         return false;
       }
-      loginWithUser(found, "Успешная аутентификация");
+      loginWithUser(found);
       return true;
     },
     [loginWithUser]
   );
 
   const quickLogin = useCallback(
-    (loginValue: string, password: string) => {
-      const found = api.authenticate(loginValue, password);
+    async (loginValue: string, password: string) => {
+      const found = await api.authenticate(
+        loginValue,
+        password,
+        "Быстрый вход в демо-прототип"
+      );
       if (!found) return false;
-      loginWithUser(found, "Быстрый вход в демо-прототип");
+      loginWithUser(found);
       return true;
     },
     [loginWithUser]
@@ -68,7 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(
     (reason: "manual" | "idle" = "manual") => {
-      if (user) api.endSession(user, reason);
+      if (user) void api.endSession(user, reason);
+      else {
+        saveToken(null);
+      }
       setCurrentUser(null);
       setLoginError("");
     },

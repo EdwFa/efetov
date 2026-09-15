@@ -62,9 +62,9 @@ export function usePatientCard(id: string | undefined) {
     patient?.createdBy ||
     "неизвестный пользователь";
 
-  const applySave = () => {
+  const applySave = async () => {
     if (!user || !patient) return;
-    const saved = tryApi(
+    const saved = await tryApi(
       () => api.savePatientBlock(user, patient.id, block, values),
       (error) => showToast(error.message)
     );
@@ -89,18 +89,18 @@ export function usePatientCard(id: string | undefined) {
     applySave();
   };
 
-  const takeLock = () => {
+  const takeLock = async () => {
     if (!user || !patient) return;
-    const locked = tryApi(
+    const locked = await tryApi(
       () => api.lockPatient(user, patient.id),
       (error) => showToast(error.message)
     );
     if (locked.ok) showToast("Карточка взята в работу");
   };
 
-  const releaseLock = () => {
+  const releaseLock = async () => {
     if (!user || !patient) return;
-    const unlocked = tryApi(
+    const unlocked = await tryApi(
       () => api.unlockPatient(user, patient.id),
       (error) => showToast(error.message)
     );
