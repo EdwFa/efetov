@@ -53,18 +53,45 @@ API: [http://127.0.0.1:8000](http://127.0.0.1:8000) · проверка `GET /ap
 
 | Команда | Назначение |
 | --- | --- |
-| `npm run api` | FastAPI + SQLite, порт 8000 |
+| `npm run api` | FastAPI + SQLite, порт 8000, с reload |
 | `npm start` / `npm run dev` | Vite, порт 3000 |
-| `npm run build` | проверка TypeScript и сборка в `dist/` |
-| `npm run preview` | просмотр собранного `dist/` |
+| `npm run build` | проверка TypeScript и сборка UI в `dist/` |
+| `npm run start:prod` | один процесс: API + собранный UI, порт 8000 |
+| `npm run preview` | просмотр собранного `dist/` без API |
 
-Секрет JWT задаётся переменной `EFETOV_JWT_SECRET` (для демо есть значение по умолчанию).
+Секрет JWT задаётся переменной `EFETOV_JWT_SECRET` (для демо есть значение по умолчанию). На сервере его нужно сменить.
 
 Чтобы пересобрать `backend/seed.json` из фронтенд-сида:
 
 ```bash
 npx tsx scripts/export-seed.ts
 ```
+
+## Деплой на сервер (без Docker)
+
+На облачной ВМ UI и API работают с одного порта: сначала `npm run build`, затем FastAPI отдаёт `dist/` и `/api`. SQLite держите на диске, который не стирается при перезапуске.
+
+```bash
+git clone https://github.com/EdwFa/efetov.git
+cd efetov
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+
+npm ci
+npm run build
+
+export EFETOV_JWT_SECRET='длинный-случайный-секрет'
+export EFETOV_CORS_ORIGINS='https://ваш-домен'
+# export EFETOV_DATA_DIR=/var/lib/efetov
+
+npm run start:prod
+```
+
+Проверка: `http://СЕРВЕР:8000/api/health` и `http://СЕРВЕР:8000/`. Снаружи обычно ставят nginx/Caddy на 443 и проксируют на `127.0.0.1:8000`.
+
+Переменные — в `.env.example`. Файл `.env` в репозиторий не коммитится.
 
 ## Тестовые учётки
 

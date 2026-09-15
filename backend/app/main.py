@@ -1,8 +1,11 @@
 import json
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -96,15 +99,26 @@ async def lifespan(_app: FastAPI):
     yield
 
 
+DIST_DIR = Path(__file__).resolve().parents[2] / "dist"
+DEFAULT_CORS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+
+
+def cors_origins() -> list[str]:
+    raw = os.environ.get("EFETOV_CORS_ORIGINS", "").strip()
+    if not raw:
+        return DEFAULT_CORS
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 app = FastAPI(title="Efetov API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-    ],
+    allow_origins=cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -369,3 +383,28 @@ def delete_file(
     add_audit(db, actor, "Удаление файла", f"Удален файл «{name}»")
     db.commit()
     return {"ok": True}
+
+
+def _spa_file(full_path: str) -> FileResponse:
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    target = DIST_DIR / full_path
+    if full_path and target.is_file():
+        return FileResponse(target)
+    index = DIST_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    raise HTTPException(
+        status_code=404,
+        detail="UI не собран. На сервере выполните npm run build",
+    )
+
+
+@app.get("/")
+def spa_root():
+    return _spa_file("")
+
+
+@app.get("/{full_path:path}")
+def spa(full_path: str):
+    return _spa_file(full_path)

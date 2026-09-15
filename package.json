@@ -8,7 +8,8 @@
     "dev": "vite",
     "api": "python -m uvicorn app.main:app --reload --port 8000 --app-dir backend",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start:prod": "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --app-dir backend"
   },
   "dependencies": {
     "react": "^19.3.0",
