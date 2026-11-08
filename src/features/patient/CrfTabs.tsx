@@ -1,5 +1,5 @@
-import { CRF_BLOCK_ORDER } from "@/entities/crf/blocks";
-import { canViewBlock } from "@/entities/user/roles";
+import { CRF_SECTIONS, sectionLabel } from "@/entities/crf/sections";
+import { canViewSection } from "@/entities/user/roles";
 import type { Role } from "@/entities/user/types";
 import { Button, Card } from "@/shared/ui";
 
@@ -9,20 +9,21 @@ export function CrfTabs({
   onChange,
 }: {
   role: Role | null | undefined;
-  active: string;
-  onChange: (block: string) => void;
+  active: number;
+  onChange: (sectionId: number) => void;
 }) {
   return (
     <Card className="mb-5 p-4">
       <div className="flex flex-wrap gap-2">
-        {CRF_BLOCK_ORDER.map((item) => (
+        {CRF_SECTIONS.map((item) => (
           <Button
-            key={item}
-            variant={active === item ? "primary" : "secondary"}
-            disabled={!canViewBlock(role, item)}
-            onClick={() => onChange(item)}
+            key={item.id}
+            variant={active === item.id ? "primary" : "secondary"}
+            disabled={!canViewSection(role, item.id)}
+            className="max-w-full whitespace-normal text-left"
+            onClick={() => onChange(item.id)}
           >
-            {item}
+            {sectionLabel(item.id)}
           </Button>
         ))}
       </div>

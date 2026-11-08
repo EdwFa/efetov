@@ -5,8 +5,8 @@ import { useToast } from "@/shared/ui/toast";
 export function LoginPage() {
   const { toast } = useToast();
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-      <div className="grid w-full max-w-5xl items-stretch gap-6 lg:grid-cols-[1fr_1.2fr]">
+    <main className="flex min-h-screen bg-slate-50 p-4 sm:p-6">
+      <div className="m-auto grid w-full max-w-5xl items-stretch gap-6 lg:grid-cols-[1fr_1.2fr]">
         <LoginForm />
         <QuickRoleCards />
       </div>

@@ -16,6 +16,20 @@ export function PatientHeader({ patient }: { patient: Patient }) {
         tone="amber"
       />
       <Kpi
+        title="Дата и время создания"
+        value={patient.createdAt || "—"}
+        note={`Создатель: ${patient.createdByName || "—"}`}
+      />
+      <Kpi
+        title="Последнее изменение"
+        value={patient.updatedAt || "—"}
+        note={
+          patient.updatedByName
+            ? `Автор: ${patient.updatedByName}`
+            : "Автор не записан"
+        }
+      />
+      <Kpi
         title="Блокировка"
         value={owner ? owner : LOCK_FREE}
         note={owner ? "карта занята" : "можно взять в работу"}

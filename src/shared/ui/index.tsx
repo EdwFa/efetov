@@ -26,7 +26,7 @@ export function Button({
     <button
       disabled={disabled}
       className={cn(
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-[0.95rem] py-[0.58rem] text-sm font-bold leading-tight transition",
+        "inline-flex max-w-full items-center justify-center gap-2 rounded-xl border px-[0.95rem] py-[0.58rem] text-center text-sm font-bold leading-tight transition",
         !disabled &&
           variant === "primary" &&
           "border-transparent bg-teal-700 text-white hover:bg-teal-800",
@@ -72,7 +72,7 @@ export function Label({
 }: LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn("mb-1.5 block text-xs font-bold text-slate-600", className)}
+      className={cn("mb-1.5 block whitespace-pre-wrap text-xs font-bold text-slate-600", className)}
       {...props}
     />
   );
@@ -174,12 +174,17 @@ export function Modal({
   onClose: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4"
-      onClick={onClose}
-    >
-      <div className="w-full max-w-lg" onClick={(event) => event.stopPropagation()}>
-        {children}
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-900/40">
+      <div
+        className="flex min-h-full items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div
+          className="w-full max-w-lg"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -188,7 +193,7 @@ export function Modal({
 export function Toast({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <div className="fixed bottom-5 right-5 z-50 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-xl">
+    <div className="fixed bottom-5 right-5 z-50 max-w-[min(24rem,calc(100vw-2.5rem))] rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-xl">
       {message}
     </div>
   );

@@ -1,11 +1,13 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/api/mock";
 import { tryApi } from "@/api/errors";
 import { useRuntime } from "@/api/useRuntime";
 import { applyBmiToValues } from "@/entities/crf/computed";
-import { CREATE_BLOCKS, fieldKey, fieldsOf } from "@/entities/crf/schema";
+import { fieldsOfSection } from "@/entities/crf/schema";
+import { CRF_SECTIONS, sectionLabel } from "@/entities/crf/sections";
 import { CENTERS, centerCode, nextCode, nextPatientId } from "@/entities/patient/code";
 import { useAuth } from "@/features/auth/useAuth";
+import { setUnsavedChanges } from "@/features/patient/unsaved";
 import { now } from "@/shared/lib/dates";
 import {
   Button,
@@ -38,6 +40,17 @@ export function CreatePatientForm({
     () => nextCode(nextId, centerCode(center)),
     [center, nextId]
   );
+  const dirty =
+    center !== CENTERS[0] ||
+    code !== nextCode(nextId, centerCode(CENTERS[0])) ||
+    operationDate.trim() !== "" ||
+    Object.values(values).some((value) => value.trim() !== "");
+
+  useEffect(() => {
+    setUnsavedChanges(dirty);
+  }, [dirty]);
+
+  useEffect(() => () => setUnsavedChanges(false), []);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -64,7 +77,7 @@ export function CreatePatientForm({
         <Kpi
           title="Шифр пациента"
           value={previewCode}
-          note="вариант A: ID и шифр отдельно"
+          note="задается отдельно от ID"
           tone="green"
         />
         <Kpi
@@ -118,19 +131,20 @@ export function CreatePatientForm({
             </div>
           </div>
         </Card>
-        {Object.entries(CREATE_BLOCKS)
-          .filter(([block]) => block !== "Послеоперационные наблюдения")
-          .map(([block], index) => (
-            <Card key={block} className="p-5">
+        {CRF_SECTIONS.filter((section) => section.id <= 10).map((section) => {
+          const fields = fieldsOfSection(section.id);
+          if (fields.length === 0) return null;
+          return (
+            <Card key={section.id} className="p-5">
               <h2 className="text-base font-black text-slate-900">
-                {index + 1}. {block}
+                {sectionLabel(section.id)}
               </h2>
               <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-                {fieldsOf(block).map((field) => (
+                {fields.map((field) => (
                   <FieldControl
                     key={field.key}
                     name={field.label}
-                    value={values[field.key] || values[fieldKey(block, field.label)] || ""}
+                    value={values[field.key] || ""}
                     hint={field.hint}
                     editable={!field.computedFrom}
                     onChange={(value) =>
@@ -138,7 +152,6 @@ export function CreatePatientForm({
                         applyBmiToValues({
                           ...current,
                           [field.key]: value,
-                          [fieldKey(block, field.label)]: value,
                         })
                       )
                     }
@@ -146,14 +159,15 @@ export function CreatePatientForm({
                 ))}
               </div>
             </Card>
-          ))}
+          );
+        })}
         <Card className="bg-slate-50 p-5">
           <h2 className="text-base font-black text-slate-900">
-            5. Послеоперационные наблюдения
+            Разделы 11–15
           </h2>
           <p className="mt-2 text-slate-500">
-            Этот блок не заполняется при первичном создании карточки. Блок будет
-            доступен врачу амбулатории и руководителю в карточке пациента.
+            При создании карточки эти разделы не заполняются. Их редактирует врач
+            амбулатории или руководитель в уже созданной карточке.
           </p>
         </Card>
         <div className="flex flex-wrap gap-2">

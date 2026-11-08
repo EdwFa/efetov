@@ -1,5 +1,5 @@
+import { CRF_SECTIONS, sectionById } from "@/entities/crf/sections";
 import type { Role } from "./types";
-import { CRF_BLOCK_ORDER, type CrfBlock } from "@/entities/crf/blocks";
 
 export type Permission =
   | "patient.create"
@@ -8,6 +8,7 @@ export type Permission =
   | "files.manage"
   | "audit.view"
   | "export.run"
+  | "users.manage"
   | "crf.edit";
 
 const MATRIX: Record<Role, Permission[]> = {
@@ -20,11 +21,13 @@ const MATRIX: Record<Role, Permission[]> = {
     "files.manage",
     "audit.view",
     "export.run",
+    "users.manage",
   ],
+  administrator: [],
 };
 
-export function can(role: Role | null | undefined, permission: Permission): boolean {
-  if (!role) return false;
+export function can(role: Role | "" | null | undefined, permission: Permission): boolean {
+  if (!role || !(role in MATRIX)) return false;
   return MATRIX[role].includes(permission);
 }
 
@@ -35,32 +38,23 @@ export function powers(role: Role | null | undefined) {
     canFilesManage: can(role, "files.manage"),
     canAudit: can(role, "audit.view"),
     canExport: can(role, "export.run"),
+    canAdminister: can(role, "users.manage"),
   };
 }
 
-const STATIONARY_BLOCKS: CrfBlock[] = [
-  "Общие данные",
-  "Анамнез",
-  "Предоперационные исследования",
-  "Операционные данные",
-];
+export function canViewSection(role: Role | null | undefined, sectionId: number): boolean {
+  if (!sectionById(sectionId)) return false;
+  return role === "leader" || role === "stationary" || role === "ambulatory";
+}
 
-const AMBULATORY_VIEW: CrfBlock[] = [
-  "Общие данные",
-  "Анамнез",
-  "Послеоперационные наблюдения",
-];
-
-export function canViewBlock(role: Role | null | undefined, block: string): boolean {
-  if (role === "leader") return CRF_BLOCK_ORDER.includes(block as CrfBlock);
-  if (role === "stationary") return STATIONARY_BLOCKS.includes(block as CrfBlock);
-  if (role === "ambulatory") return AMBULATORY_VIEW.includes(block as CrfBlock);
+export function canEditSection(role: Role | null | undefined, sectionId: number): boolean {
+  if (!sectionById(sectionId)) return false;
+  if (role === "leader") return true;
+  if (role === "stationary") return sectionId >= 1 && sectionId <= 10;
+  if (role === "ambulatory") return sectionId >= 11 && sectionId <= 15;
   return false;
 }
 
-export function canEditBlock(role: Role | null | undefined, block: string): boolean {
-  if (role === "leader") return CRF_BLOCK_ORDER.includes(block as CrfBlock);
-  if (role === "stationary") return STATIONARY_BLOCKS.includes(block as CrfBlock);
-  if (role === "ambulatory") return block === "Послеоперационные наблюдения";
-  return false;
+export function visibleSectionIds(role: Role | null | undefined): number[] {
+  return CRF_SECTIONS.map((item) => item.id).filter((id) => canViewSection(role, id));
 }

@@ -1,5 +1,48 @@
-import type { JournalFilters } from "@/entities/patient/types";
+import type { JournalFilters as JournalFilterValues } from "@/entities/patient/types";
+import { dateRangeError } from "@/features/journal/filter";
 import { Button, Card, Label, Select, TextInput } from "@/shared/ui";
+
+function DateRange({
+  label,
+  from,
+  to,
+  onFrom,
+  onTo,
+}: {
+  label: string;
+  from: string;
+  to: string;
+  onFrom: (value: string) => void;
+  onTo: (value: string) => void;
+}) {
+  const error = dateRangeError(from, to, label);
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <span className="mb-1 block text-xs text-slate-500">С</span>
+          <TextInput
+            value={from}
+            placeholder="дд.мм.гггг"
+            aria-label={`${label}, с`}
+            onChange={(event) => onFrom(event.target.value)}
+          />
+        </div>
+        <div>
+          <span className="mb-1 block text-xs text-slate-500">По</span>
+          <TextInput
+            value={to}
+            placeholder="дд.мм.гггг"
+            aria-label={`${label}, по`}
+            onChange={(event) => onTo(event.target.value)}
+          />
+        </div>
+      </div>
+      {error ? <p className="mt-1 text-xs font-semibold text-red-700">{error}</p> : null}
+    </div>
+  );
+}
 
 export function JournalFilters({
   filters,
@@ -12,11 +55,11 @@ export function JournalFilters({
   onExportFinal,
   onExportSlice,
 }: {
-  filters: JournalFilters;
+  filters: JournalFilterValues;
   centers: string[];
   canCreate: boolean;
   canExport: boolean;
-  onPatch: (patch: Partial<JournalFilters>) => void;
+  onPatch: (patch: Partial<JournalFilterValues>) => void;
   onReset: () => void;
   onCreate: () => void;
   onExportFinal: () => void;
@@ -56,22 +99,20 @@ export function JournalFilters({
               ))}
             </Select>
           </div>
-          <div>
-            <Label>Дата операции</Label>
-            <TextInput
-              value={filters.operationDate}
-              placeholder="05.10.2022"
-              onChange={(event) => onPatch({ operationDate: event.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Дата и время создания</Label>
-            <TextInput
-              value={filters.createdAt}
-              placeholder="09.06.2026 10:18"
-              onChange={(event) => onPatch({ createdAt: event.target.value })}
-            />
-          </div>
+          <DateRange
+            label="Дата операции"
+            from={filters.operationDateFrom}
+            to={filters.operationDateTo}
+            onFrom={(operationDateFrom) => onPatch({ operationDateFrom })}
+            onTo={(operationDateTo) => onPatch({ operationDateTo })}
+          />
+          <DateRange
+            label="Дата и время создания"
+            from={filters.createdAtFrom}
+            to={filters.createdAtTo}
+            onFrom={(createdAtFrom) => onPatch({ createdAtFrom })}
+            onTo={(createdAtTo) => onPatch({ createdAtTo })}
+          />
         </div>
         {canExport ? (
           <div className="flex flex-wrap gap-2 xl:min-w-[230px] xl:flex-col xl:border-l xl:pl-4">

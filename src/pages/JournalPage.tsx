@@ -33,7 +33,7 @@ export function JournalPage() {
     if (!target) return;
     if (
       !window.confirm(
-        `Удалить карточку пациента ${target.code}? Действие будет отражено в демо-аудите.`
+        `Удалить карточку пациента ${target.code}?`
       )
     ) {
       return;
@@ -42,7 +42,7 @@ export function JournalPage() {
       () => api.deletePatient(user, id),
       (error) => showToast(error.message)
     );
-    if (deleted.ok) showToast("Карточка удалена из демо-данных");
+    if (deleted.ok) showToast("Карточка удалена");
   };
 
   const performExport = async (format: "excel" | "csv") => {
@@ -57,7 +57,21 @@ export function JournalPage() {
       (error) => showToast(error.message)
     );
     if (!recorded.ok) return;
-    downloadExport(rows, exportModal, format);
+    try {
+      if (format === "excel" && exportModal === "final") {
+        await api.downloadFinalExport(user);
+      } else if (format === "excel") {
+        await api.downloadSliceExport(
+          user,
+          rows.map((patient) => patient.id)
+        );
+      } else {
+        downloadExport(rows, exportModal, format);
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Выгрузка не сформирована");
+      return;
+    }
     setExportModal(null);
     showToast("Выгрузка сформирована и сохранена браузером");
   };
@@ -66,7 +80,7 @@ export function JournalPage() {
     <>
       <PageHeader
         title="Общий журнал пациентов"
-        description="Таблица с ключевыми полями: ID, шифр, группа/центр, дата операции, дата и время создания. Всем ролям доступен просмотр журнала; создание карты пациента — врачу стационара и руководителю."
+        description="Список карточек пациентов."
       />
       <JournalFilters
         filters={filters}

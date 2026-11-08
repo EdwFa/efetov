@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/app/layout/AppShell";
 import { GuestOnly, RequireAuth, RequirePermission } from "@/features/auth/guards";
+import { AdminPage } from "@/pages/AdminPage";
 import { AuditPage } from "@/pages/AuditPage";
 import { FilesPage } from "@/pages/FilesPage";
 import { JournalPage } from "@/pages/JournalPage";
@@ -24,6 +25,9 @@ export function AppRouter() {
           <Route path="/files" element={<FilesPage />} />
           <Route element={<RequirePermission permission="audit.view" />}>
             <Route path="/audit" element={<AuditPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="users.manage" />}>
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Route>
       </Route>

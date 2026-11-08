@@ -24,7 +24,7 @@ export function PatientCardPage() {
     <>
       <PageHeader
         title="Карточка пациента"
-        description="CRF состоит из 5 блоков. Доступность просмотра и редактирования зависит от роли пользователя."
+        description="Данные пациента по разделам карточки."
       />
       <PatientHeader patient={card.patient} />
       <PatientLockBar
@@ -38,14 +38,15 @@ export function PatientCardPage() {
       />
       <CrfTabs
         role={user?.role}
-        active={card.block}
-        onChange={card.setActiveBlock}
+        active={card.sectionId}
+        onChange={card.setActiveSection}
       />
       <CrfBlockForm
-        block={card.block}
+        block={card.sectionLabel}
         fields={card.fields}
         values={card.values}
         editable={card.editable}
+        canSave={card.canSave}
         onChange={card.setField}
         onSave={card.requestSave}
         onBack={() => navigate("/journal")}

@@ -1,65 +1,46 @@
-CRF_SCHEMA = [
-    {"key": "age", "block": "Общие данные", "label": "Возраст", "hint": "из исходной таблицы: «Возраст (во время операции)»"},
-    {"key": "diagnosis", "block": "Общие данные", "label": "Диагноз"},
-    {"key": "sex", "block": "Общие данные", "label": "Пол (М - 1, Ж - 0)"},
-    {"key": "stage", "block": "Общие данные", "label": "Стадия"},
-    {"key": "height", "block": "Общие данные", "label": "Рост"},
-    {"key": "weight", "block": "Общие данные", "label": "Вес"},
-    {"key": "bmi", "block": "Общие данные", "label": "ИМТ", "hint": "вычисляемый параметр", "computed_from": ["height", "weight"]},
-    {"key": "comorbidities", "block": "Анамнез", "label": "Сопутствующие заболевания"},
-    {"key": "charlson", "block": "Анамнез", "label": "Индекс коморбидности Чарлсона"},
-    {"key": "ecog", "block": "Анамнез", "label": "ECOG"},
-    {"key": "karnofsky", "block": "Анамнез", "label": "Шкала Карновского"},
-    {"key": "asa", "block": "Анамнез", "label": "Риск ASA"},
-    {"key": "priorSurgery", "block": "Анамнез", "label": "Операции в анамнезе"},
-    {"key": "colonoscopyTumor", "block": "Предоперационные исследования", "label": "Колоноскопия: описание опухоли, дата"},
-    {"key": "colonoscopyOther", "block": "Предоперационные исследования", "label": "Колоноскопия: другие изменения"},
-    {"key": "ctAbdomen", "block": "Предоперационные исследования", "label": "КТ органов брюшной полости, дата"},
-    {"key": "ctChest", "block": "Предоперационные исследования", "label": "КТ органов грудной клетки"},
-    {"key": "cea", "block": "Предоперационные исследования", "label": "РЭА, нг/мл"},
-    {"key": "ca199", "block": "Предоперационные исследования", "label": "СА 19-9, МЕ/мл"},
-    {"key": "hemoglobin", "block": "Предоперационные исследования", "label": "Гемоглобин, г/л"},
-    {"key": "wbc", "block": "Предоперационные исследования", "label": "Лейкоциты, *10^9/л"},
-    {"key": "platelets", "block": "Предоперационные исследования", "label": "Тромбоциты, *10^9/л"},
-    {"key": "creatinine", "block": "Предоперационные исследования", "label": "Креатинин, мкмоль/л"},
-    {"key": "hospDate", "block": "Операционные данные", "label": "Дата госпитализации"},
-    {"key": "attending", "block": "Операционные данные", "label": "Лечащий врач"},
-    {"key": "opDate", "block": "Операционные данные", "label": "Дата операции"},
-    {"key": "surgeon", "block": "Операционные данные", "label": "Хирург"},
-    {"key": "assistants", "block": "Операционные данные", "label": "Ассистенты"},
-    {"key": "operationName", "block": "Операционные данные", "label": "Название операции"},
-    {"key": "access", "block": "Операционные данные", "label": "Доступ (лапароскопия-1 / лапаротомия-0 / робот-2)", "aliases": ["Доступ"]},
-    {"key": "bloodLoss", "block": "Операционные данные", "label": "Кровопотеря"},
-    {"key": "tumorDesc", "block": "Операционные данные", "label": "Описание опухоли"},
-    {"key": "intraopComplications", "block": "Операционные данные", "label": "Интраоперационные осложнения"},
-    {"key": "icuDays", "block": "Послеоперационные наблюдения", "label": "Количество суток в ОРИТ"},
-    {"key": "postopComplications", "block": "Послеоперационные наблюдения", "label": "Осложнения в послеоперационном периоде"},
-    {"key": "woundComplications", "block": "Послеоперационные наблюдения", "label": "Раневые осложнения"},
-    {"key": "clavien", "block": "Послеоперационные наблюдения", "label": "Clavien-Dindo"},
-    {"key": "dischargeDate", "block": "Послеоперационные наблюдения", "label": "Дата выписки"},
-    {"key": "followed", "block": "Послеоперационные наблюдения", "label": "Отслежен (да-1, нет-0)"},
-    {"key": "lastContact", "block": "Послеоперационные наблюдения", "label": "Дата последнего контакта"},
-    {"key": "progression", "block": "Послеоперационные наблюдения", "label": "Прогрессия (да-1, нет-0)"},
-    {"key": "localRecurrence", "block": "Послеоперационные наблюдения", "label": "Местный рецидив"},
-]
+import json
+from pathlib import Path
+
+CATALOG_PATH = Path(__file__).resolve().parents[2] / "src" / "entities" / "crf" / "catalog.json"
+_CATALOG = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+CRF_SCHEMA = _CATALOG["fields"]
+FIELD_SECTION = {field["key"]: field["section"] for field in CRF_SCHEMA}
 
 
 def _norm(value: str) -> str:
     return " ".join(str(value or "").replace("\n", " ").split()).strip().lower()
 
 
-def fields_of(block: str) -> list[dict]:
-    return [field for field in CRF_SCHEMA if field["block"] == block]
+_LABEL_OWNER = {}
+for _field in CRF_SCHEMA:
+    _name = _norm(_field["label"])
+    if _name and _name not in _LABEL_OWNER:
+        _LABEL_OWNER[_name] = _field["key"]
+
+
+def fields_of_section(section_id: int) -> list[dict]:
+    return [field for field in CRF_SCHEMA if field.get("section") == section_id]
 
 
 def field_names(field: dict) -> list[str]:
     return [field["label"], *field.get("aliases", [])]
 
 
+def _claims(field: dict, item: dict) -> bool:
+    if item.get("key") == field["key"]:
+        return True
+    if item.get("key") and item.get("key") != field["key"]:
+        return False
+    name = _norm(item.get("name", ""))
+    aliases = {_norm(alias) for alias in field.get("aliases", [])}
+    if name in aliases:
+        return True
+    return _LABEL_OWNER.get(_norm(field["label"])) == field["key"] and name == _norm(field["label"])
+
+
 def match_stored(stored: list[dict], field: dict) -> dict | None:
-    names = {_norm(name) for name in field_names(field)}
     for item in stored:
-        if _norm(item.get("name", "")) in names:
+        if _claims(field, item):
             return item
     return None
 
@@ -76,64 +57,99 @@ def compute_bmi(height_cm: str, weight_kg: str) -> str:
     return f"{weight / (meters * meters):.2f}"
 
 
-def merge_block(block: str, stored: list[dict] | None = None) -> list[dict]:
-    stored = stored or []
-    used: set[int] = set()
-    merged: list[dict] = []
-    for field in fields_of(block):
-        found = match_stored(stored, field)
-        if found is not None:
-            used.add(id(found))
-        merged.append(
-            {
-                "key": field["key"],
-                "name": field["label"],
-                "value": (found or {}).get("value", ""),
-                "hint": field.get("hint") or (found or {}).get("hint"),
-            }
-        )
-    extras = [item for item in stored if id(item) not in used]
-    return [*merged, *extras]
-
-
 def with_computed(fields: list[dict]) -> list[dict]:
     height = match_stored(fields, next(f for f in CRF_SCHEMA if f["key"] == "height"))
     weight = match_stored(fields, next(f for f in CRF_SCHEMA if f["key"] == "weight"))
     bmi = compute_bmi((height or {}).get("value", ""), (weight or {}).get("value", ""))
     result = []
     for field in fields:
-        if field.get("key") == "bmi" or field.get("name") == "ИМТ":
+        if field.get("key") == "bmi":
             result.append({**field, "value": bmi or field.get("value", "")})
         else:
             result.append(field)
     return result
 
 
-def apply_block_values(block: str, stored: list[dict], values: dict[str, str]) -> list[dict]:
-    merged = merge_block(block, stored)
-    applied = []
-    for field in merged:
-        value = values.get(field["name"])
-        if value is None and field.get("key"):
-            value = values.get(field["key"])
+def _iter_stored(blocks: dict) -> list[dict]:
+    stored: list[dict] = []
+    for fields in blocks.values():
+        if isinstance(fields, list):
+            stored.extend(item for item in fields if isinstance(item, dict))
+    return stored
+
+
+def find_stored(blocks: dict, field: dict) -> dict | None:
+    return match_stored(_iter_stored(blocks), field)
+
+
+def _incoming_value(field: dict, values: dict[str, str]) -> str | None:
+    key = field["key"]
+    if key in values:
+        return values[key]
+    label = field["label"]
+    if label in values and _LABEL_OWNER.get(_norm(label)) == key:
+        return values[label]
+    for alias in field.get("aliases", []):
+        if alias in values:
+            return values[alias]
+    return None
+
+
+def _write_bmi(blocks: dict) -> None:
+    height = find_stored(blocks, next(field for field in CRF_SCHEMA if field["key"] == "height"))
+    weight = find_stored(blocks, next(field for field in CRF_SCHEMA if field["key"] == "weight"))
+    bmi = find_stored(blocks, next(field for field in CRF_SCHEMA if field["key"] == "bmi"))
+    if bmi is None:
+        return
+    computed = compute_bmi((height or {}).get("value", ""), (weight or {}).get("value", ""))
+    if computed:
+        bmi["value"] = computed
+
+
+def operation_date_from(blocks: dict) -> str:
+    field = next(item for item in CRF_SCHEMA if item["key"] == "opDate")
+    stored = find_stored(blocks, field)
+    return str((stored or {}).get("value") or "")
+
+
+def apply_section_values(blocks: dict, section_id: int, values: dict[str, str]) -> dict:
+    from .rbac import section_label
+
+    bucket = section_label(section_id)
+    blocks.setdefault(bucket, [])
+    for field in fields_of_section(section_id):
+        target = find_stored(blocks, field)
+        value = _incoming_value(field, values)
         if value is None:
-            value = field.get("value", "")
-        applied.append({**field, "value": value})
-    return with_computed(applied)
+            value = (target or {}).get("value", "")
+        if target is None:
+            blocks[bucket].append(
+                {
+                    "key": field["key"],
+                    "name": field["label"],
+                    "value": value,
+                    "hint": field.get("hint"),
+                }
+            )
+        else:
+            target["key"] = field["key"]
+            target["value"] = value
+    _write_bmi(blocks)
+    return blocks
 
 
 def empty_blocks() -> dict[str, list[dict]]:
-    from .rbac import ALL_BLOCKS
+    from .rbac import SECTIONS, section_label
 
     blocks: dict[str, list[dict]] = {}
-    for block in ALL_BLOCKS:
-        blocks[block] = [
+    for section_id, _title in SECTIONS:
+        blocks[section_label(section_id)] = [
             {
                 "key": field["key"],
                 "name": field["label"],
                 "value": "",
                 "hint": field.get("hint"),
             }
-            for field in fields_of(block)
+            for field in fields_of_section(section_id)
         ]
     return blocks

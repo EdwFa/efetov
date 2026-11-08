@@ -27,13 +27,15 @@ export function AuditTable({ rows }: { rows: AuditEvent[] }) {
           <tbody>
             {rows.map((item, index) => (
               <tr key={`${item.time}-${index}`} className="hover:bg-slate-50">
-                <td className="border-b border-slate-200 px-3 py-3">{item.time}</td>
-                <td className="border-b border-slate-200 px-3 py-3 font-bold">
+                <td className="whitespace-nowrap border-b border-slate-200 px-3 py-3">{item.time}</td>
+                <td className="whitespace-nowrap border-b border-slate-200 px-3 py-3 font-bold">
                   {item.userId}
                 </td>
                 <td className="border-b border-slate-200 px-3 py-3">{item.role}</td>
                 <td className="border-b border-slate-200 px-3 py-3">{item.action}</td>
-                <td className="border-b border-slate-200 px-3 py-3">{item.details}</td>
+                <td className="min-w-48 max-w-md whitespace-normal break-words border-b border-slate-200 px-3 py-3">
+                  {item.details}
+                </td>
               </tr>
             ))}
           </tbody>

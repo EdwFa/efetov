@@ -1,10 +1,10 @@
 import type { Field } from "@/entities/patient/types";
 import { computeBmi } from "./computed";
 import {
-  CRF_SCHEMA,
   fieldByKey,
   fieldNames,
-  fieldsOf,
+  fieldsOfSection,
+  labelOwnerKey,
   normalizeHeader,
   type CrfFieldSchema,
 } from "./schema";
@@ -17,15 +17,31 @@ export function matchStoredField(
   stored: Field[],
   field: CrfFieldSchema
 ): Field | undefined {
+  const byKey = stored.find((item) => item.key === field.key);
+  if (byKey) return byKey;
   const names = storedNameSet(field);
-  return stored.find((item) => names.has(normalizeHeader(item.name)));
+  const ownsLabel = labelOwnerKey(field.label) === field.key;
+  return stored.find((item) => {
+    if (item.key && item.key !== field.key) return false;
+    const name = normalizeHeader(item.name);
+    if ((field.aliases ?? []).some((alias) => normalizeHeader(alias) === name)) {
+      return true;
+    }
+    return ownsLabel && names.has(name);
+  });
 }
 
-export function mergeBlock(block: string, stored: Field[] = []): Field[] {
-  const used = new Set<Field>();
-  const merged: Field[] = fieldsOf(block).map((field) => {
+export function storedFields(blocks: Record<string, Field[]>): Field[] {
+  return Object.values(blocks).flatMap((items) => items ?? []);
+}
+
+export function mergeSection(
+  sectionId: number,
+  blocks: Record<string, Field[]>
+): Field[] {
+  const stored = storedFields(blocks);
+  return fieldsOfSection(sectionId).map((field) => {
     const found = matchStoredField(stored, field);
-    if (found) used.add(found);
     return {
       key: field.key,
       name: field.label,
@@ -33,17 +49,15 @@ export function mergeBlock(block: string, stored: Field[] = []): Field[] {
       hint: field.hint ?? found?.hint,
     };
   });
-  const extras = stored.filter((item) => !used.has(item));
-  return [...merged, ...extras];
 }
 
 export function getFieldValueByKey(
   blocks: Record<string, Field[]>,
   key: string
 ): string {
-  const schema = CRF_SCHEMA.find((field) => field.key === key);
+  const schema = fieldByKey(key);
   if (!schema) return "";
-  const found = matchStoredField(blocks[schema.block] || [], schema);
+  const found = matchStoredField(storedFields(blocks), schema);
   return found?.value ?? "";
 }
 
@@ -56,22 +70,7 @@ export function withComputed(fields: Field[]): Field[] {
     matchStoredField(fields, weight)?.value ?? ""
   );
   return fields.map((field) =>
-    field.key === "bmi" || field.name === "ИМТ"
-      ? { ...field, value: bmi || field.value }
-      : field
-  );
-}
-
-export function applyBlockValues(
-  block: string,
-  stored: Field[],
-  values: Record<string, string>
-): Field[] {
-  return withComputed(
-    mergeBlock(block, stored).map((field) => ({
-      ...field,
-      value: values[field.name] ?? values[field.key ?? ""] ?? field.value,
-    }))
+    field.key === "bmi" ? { ...field, value: bmi || field.value } : field
   );
 }
 

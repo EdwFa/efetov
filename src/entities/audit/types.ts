@@ -7,7 +7,8 @@ export interface AuditEvent {
 }
 
 export interface AuditFilters {
-  time: string;
+  timeFrom: string;
+  timeTo: string;
   userId: string;
   role: string;
   action: string;
@@ -15,7 +16,8 @@ export interface AuditFilters {
 }
 
 export const EMPTY_AUDIT_FILTERS: AuditFilters = {
-  time: "",
+  timeFrom: "",
+  timeTo: "",
   userId: "",
   role: "all",
   action: "",

@@ -11,6 +11,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/journal", label: "Общий журнал пациентов" },
   { to: "/files", label: "Файловое хранилище" },
   { to: "/audit", label: "Модуль аудита", permission: "audit.view" },
+  { to: "/admin", label: "Администрирование", permission: "users.manage" },
 ];
 
 export function visibleNav(role: Role | null | undefined): NavItem[] {

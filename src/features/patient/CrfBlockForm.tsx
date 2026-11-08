@@ -7,6 +7,7 @@ export function CrfBlockForm({
   fields,
   values,
   editable,
+  canSave,
   onChange,
   onSave,
   onBack,
@@ -15,6 +16,7 @@ export function CrfBlockForm({
   fields: Field[];
   values: Record<string, string>;
   editable: boolean;
+  canSave: boolean;
   onChange: (name: string, value: string) => void;
   onSave: () => void;
   onBack: () => void;
@@ -25,9 +27,13 @@ export function CrfBlockForm({
         <div>
           <h2 className="text-xl font-black">{block}</h2>
           <p className="mt-1 text-slate-500">
-            {editable
-              ? "Поля доступны для редактирования текущей роли. При сохранении данные пишутся в SQLite."
-              : "Только просмотр для текущей роли."}
+            {fields.length === 0
+              ? "В этом разделе нет полей."
+              : editable
+                ? "Поля можно изменить и сохранить. Ввод сохраняется при переходе в другой раздел."
+                : canSave
+                  ? "Только просмотр. Несохраненные изменения других разделов можно записать кнопкой «Сохранить»."
+                  : "Только просмотр."}
           </p>
         </div>
         <Badge tone={editable ? "green" : "slate"}>
@@ -43,16 +49,16 @@ export function CrfBlockForm({
             <FieldControl
               key={field.key || field.name}
               name={field.name}
-              value={values[field.name] ?? field.value ?? ""}
+              value={values[field.key || field.name] ?? field.value ?? ""}
               hint={field.hint}
               editable={editable && !computed}
-              onChange={(value) => onChange(field.name, value)}
+              onChange={(value) => onChange(field.key || field.name, value)}
             />
           );
         })}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button disabled={!editable} onClick={onSave}>
+        <Button disabled={!canSave} onClick={onSave}>
           Сохранить
         </Button>
         <Button variant="secondary" onClick={onBack}>

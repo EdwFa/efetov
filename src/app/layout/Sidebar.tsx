@@ -38,12 +38,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </NavLink>
         ))}
       </nav>
-      <div className="mt-8 rounded-2xl bg-white/5 p-4 text-xs leading-5 text-slate-400">
-        <b className="text-slate-300">Разграничение по ТЗ</b>
-        <br />
-        Врачи видят журнал и хранилище. Модуль аудита и выгрузки доступны только
-        руководителю.
-      </div>
     </>
   );
 }

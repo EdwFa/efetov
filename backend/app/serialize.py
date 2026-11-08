@@ -6,6 +6,7 @@ from .rbac import LOCK_FREE, format_lock
 
 def patient_to_dict(patient: Patient, users: dict[str, User]) -> dict:
     creator = users.get(patient.created_by)
+    editor = users.get(patient.updated_by) if patient.updated_by else None
     lock = format_lock(patient.lock_user_id) if patient.lock_user_id else LOCK_FREE
     return {
         "id": patient.id,
@@ -19,6 +20,8 @@ def patient_to_dict(patient: Patient, users: dict[str, User]) -> dict:
         "createdByName": creator.name if creator else patient.created_by,
         "createdAt": patient.created_at,
         "updatedAt": patient.updated_at,
+        "updatedBy": patient.updated_by or "",
+        "updatedByName": editor.name if editor else "",
         "lock": lock,
         "blocks": json.loads(patient.blocks_json),
     }

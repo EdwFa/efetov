@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "@/api/mock";
 import type { DemoUser } from "@/entities/user/types";
 import { ROLE_LABELS } from "@/entities/user/types";
-import { Badge, Button, Card, Label, TextInput } from "@/shared/ui";
+import { Button, Card, Label, TextInput } from "@/shared/ui";
 import { returnPathFromState } from "./redirect";
 import { useAuth } from "./useAuth";
 
@@ -25,16 +25,9 @@ export function LoginForm() {
 
   return (
     <Card className="p-8">
-      <Badge tone="green" className="mb-4">
-        Кликабельный прототип
-      </Badge>
       <h1 className="text-3xl font-black tracking-tight">
         Интерактивная цифровая система поддержки клинического испытания
       </h1>
-      <p className="mt-4 text-slate-500">
-        Отдельная форма авторизации. Для демонстрации используются три тестовые
-        роли с разным набором прав.
-      </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div>
           <Label htmlFor="login">Логин</Label>

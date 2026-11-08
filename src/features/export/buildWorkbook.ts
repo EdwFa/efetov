@@ -4,39 +4,36 @@ import { CRF_SCHEMA, normalizeHeader } from "@/entities/crf/schema";
 import { SEED } from "@/api/mock/seed";
 import { downloadBlob, escapeHtml } from "@/shared/lib/download";
 
-const PII_HEADERS = new Set(
-  ["ФИО", "Телефон", "Телефон 2", "Адрес "].map(normalizeHeader)
-);
-
-const META_HEADERS: Record<string, (patient: Patient) => string> = {
-  [normalizeHeader("Кто заполнял строку")]: (patient) =>
-    patient.createdByLogin || patient.createdBy || "",
-  [normalizeHeader("комментарий")]: (patient) =>
-    `Шифр: ${patient.code}; создано: ${patient.createdAt}`,
-};
-
-const EXCEL_HEADER_TO_KEY = (() => {
-  const map = new Map<string, string>();
+const HEADER_FIELDS = (() => {
+  const map = new Map<string, string[]>();
   CRF_SCHEMA.forEach((field) => {
-    (field.excelHeaders ?? []).forEach((header) => {
+    const seen = new Set<string>();
+    field.excelHeaders.forEach((header) => {
       const key = normalizeHeader(header);
-      if (key && !map.has(key)) map.set(key, field.key);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      const queue = map.get(key) ?? [];
+      queue.push(field.key);
+      map.set(key, queue);
     });
   });
   return map;
 })();
 
-export function valueForExportHeader(patient: Patient, header: string): string {
-  const normalized = normalizeHeader(header);
-  if (!normalized) return "";
-  if (PII_HEADERS.has(normalized)) return "";
-  const meta = META_HEADERS[normalized];
-  if (meta) return meta(patient);
-  const fieldKey = EXCEL_HEADER_TO_KEY.get(normalized);
-  if (!fieldKey) return "";
-  const value = resolveFieldValue(patient.blocks, fieldKey);
-  if (fieldKey === "opDate") return value || patient.operationDate || "";
-  return value;
+export function exportRow(patient: Patient, headers: string[]): string[] {
+  const cursor = new Map<string, number>();
+  return headers.map((header) => {
+    const normalized = normalizeHeader(header);
+    if (!normalized) return "";
+    const queue = HEADER_FIELDS.get(normalized) ?? [];
+    const index = cursor.get(normalized) ?? 0;
+    cursor.set(normalized, index + 1);
+    const fieldKey = queue[index];
+    if (!fieldKey) return "";
+    const value = resolveFieldValue(patient.blocks, fieldKey);
+    if (fieldKey === "opDate") return value || patient.operationDate || "";
+    return value;
+  });
 }
 
 function downloadCsv(matrix: string[][], filename: string) {
@@ -77,9 +74,7 @@ export function downloadExport(
       : ["ID", "Шифр", "Группа/центр", "Дата операции", "Дата и время создания"];
   const matrix = [
     headers,
-    ...patients.map((patient) =>
-      headers.map((header) => valueForExportHeader(patient, header))
-    ),
+    ...patients.map((patient) => exportRow(patient, headers)),
   ];
   const name = `${type === "slice" ? "stat_slice" : "final_export"}_${
     format === "excel" ? "excel" : "csv"

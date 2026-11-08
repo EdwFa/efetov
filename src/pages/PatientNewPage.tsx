@@ -20,7 +20,7 @@ export function PatientNewPage() {
     <>
       <PageHeader
         title="Создание карточки пациента"
-        description="Отдельная форма создания. При сохранении карточка добавляется в общий журнал; фиксируются автор, логин автора и дата/время создания."
+        description="После сохранения карточка появляется в общем журнале."
       />
       <CreatePatientForm
         onCreated={(id) => navigate(`/patients/${id}`)}

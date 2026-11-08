@@ -5,6 +5,7 @@ import {
   type JournalFilters,
   type Patient,
 } from "@/entities/patient/types";
+import { matchesJournalFilters } from "./filter";
 import { compareValues, valueForSort, type SortState } from "./sort";
 
 export function useJournal() {
@@ -13,23 +14,9 @@ export function useJournal() {
   const [sort, setSort] = useState<SortState>({ key: "id", dir: "asc" });
 
   const filteredPatients = useMemo(() => {
-    const rows = runtime.patients.filter((patient) => {
-      return (
-        (!filters.id ||
-          patient.id.toLowerCase().includes(filters.id.toLowerCase())) &&
-        (!filters.code ||
-          patient.code.toLowerCase().includes(filters.code.toLowerCase())) &&
-        (filters.center === "all" || patient.center === filters.center) &&
-        (!filters.operationDate ||
-          patient.operationDate
-            .toLowerCase()
-            .includes(filters.operationDate.toLowerCase())) &&
-        (!filters.createdAt ||
-          (patient.createdAt || "")
-            .toLowerCase()
-            .includes(filters.createdAt.toLowerCase()))
-      );
-    });
+    const rows = runtime.patients.filter((patient) =>
+      matchesJournalFilters(patient, filters)
+    );
     const factor = sort.dir === "desc" ? -1 : 1;
     return [...rows].sort(
       (a, b) =>

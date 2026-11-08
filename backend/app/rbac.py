@@ -1,9 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+MOSCOW = timezone(timedelta(hours=3))
 
 ROLE_LABELS = {
     "leader": "Руководитель исследования",
     "stationary": "Врач стационара",
     "ambulatory": "Врач амбулатории",
+    "administrator": "Системный администратор",
 }
 
 PERMISSIONS = {
@@ -16,22 +19,27 @@ PERMISSIONS = {
         "files.manage",
         "audit.view",
         "export.run",
+        "users.manage",
     ],
+    "administrator": [],
 }
 
-STATIONARY_BLOCKS = [
-    "Общие данные",
-    "Анамнез",
-    "Предоперационные исследования",
-    "Операционные данные",
-]
-AMBULATORY_VIEW = ["Общие данные", "Анамнез", "Послеоперационные наблюдения"]
-ALL_BLOCKS = [
-    "Общие данные",
-    "Анамнез",
-    "Предоперационные исследования",
-    "Операционные данные",
-    "Послеоперационные наблюдения",
+SECTIONS = [
+    (1, "Данные о пациенте"),
+    (2, "Антропометрические данные"),
+    (3, "Данные об онкологическом заболевании"),
+    (4, "Предоперационное инструментальное обследование"),
+    (5, "Предоперационное лабораторное обследование"),
+    (6, "Данные стационара"),
+    (7, "Интраоперационные данные"),
+    (8, "Течение послеоперационного периода"),
+    (9, "Послеоперационные анализы"),
+    (10, "Данные патоморфологического исследования"),
+    (11, "Отдаленные результаты"),
+    (12, "Ответственные"),
+    (13, "Исследование - цифровая детализация"),
+    (14, "Исследование - Забрюшинный доступ"),
+    (15, "Исследование - цифровая детализация+ ГИ"),
 ]
 
 MESSAGES = {
@@ -41,41 +49,58 @@ MESSAGES = {
     "files.manage": "Управление файлами недоступно для текущей роли",
     "audit.view": "Модуль аудита недоступен для текущей роли",
     "export.run": "Выгрузка недоступна для текущей роли",
-    "crf.edit": "Редактирование блока недоступно для текущей роли",
+    "users.manage": "Модуль администрирования недоступен для текущей роли",
+    "crf.edit": "Редактирование раздела недоступно для текущей роли",
 }
 
 LOCK_FREE = "нет"
+ASSIGNABLE_ROLES = ("stationary", "ambulatory", "leader")
 
 
 def now() -> str:
-    return datetime.now().strftime("%d.%m.%Y %H:%M")
+    return datetime.now(MOSCOW).strftime("%d.%m.%Y %H:%M")
 
 
 def today() -> str:
-    return datetime.now().strftime("%d.%m.%Y")
+    return datetime.now(MOSCOW).strftime("%d.%m.%Y")
 
 
 def can(role: str, permission: str) -> bool:
     return permission in PERMISSIONS.get(role, [])
 
 
-def can_view_block(role: str, block: str) -> bool:
-    if role == "leader":
-        return block in ALL_BLOCKS
-    if role == "stationary":
-        return block in STATIONARY_BLOCKS
-    if role == "ambulatory":
-        return block in AMBULATORY_VIEW
-    return False
+def section_by_id(section_id: int) -> tuple[int, str] | None:
+    for item in SECTIONS:
+        if item[0] == section_id:
+            return item
+    return None
 
 
-def can_edit_block(role: str, block: str) -> bool:
+def section_label(section_id: int) -> str:
+    found = section_by_id(section_id)
+    if not found:
+        return str(section_id)
+    return f"{found[0]}. {found[1]}"
+
+
+def can_view_section(role: str, section_id: int) -> bool:
+    if section_by_id(section_id) is None:
+        return False
+    return role in {"leader", "stationary", "ambulatory"}
+
+
+def can_edit_section(role: str, section_id: int) -> bool:
+    """Право заполнения. Ограничение «только свои карточки» не применяется:
+    разделы 1–10 и 11–15 одной карточки заполняют разные роли.
+    """
+    if section_by_id(section_id) is None:
+        return False
     if role == "leader":
-        return block in ALL_BLOCKS
+        return True
     if role == "stationary":
-        return block in STATIONARY_BLOCKS
+        return 1 <= section_id <= 10
     if role == "ambulatory":
-        return block == "Послеоперационные наблюдения"
+        return 11 <= section_id <= 15
     return False
 
 

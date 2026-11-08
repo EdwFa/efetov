@@ -17,6 +17,8 @@ export interface Patient {
   createdByName: string;
   createdAt: string;
   updatedAt: string;
+  updatedBy?: string;
+  updatedByName?: string;
   lock: string;
   blocks: Record<string, Field[]>;
 }
@@ -25,14 +27,18 @@ export interface JournalFilters {
   id: string;
   code: string;
   center: string;
-  operationDate: string;
-  createdAt: string;
+  operationDateFrom: string;
+  operationDateTo: string;
+  createdAtFrom: string;
+  createdAtTo: string;
 }
 
 export const EMPTY_JOURNAL_FILTERS: JournalFilters = {
   id: "",
   code: "",
   center: "all",
-  operationDate: "",
-  createdAt: "",
+  operationDateFrom: "",
+  operationDateTo: "",
+  createdAtFrom: "",
+  createdAtTo: "",
 };

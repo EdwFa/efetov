@@ -52,14 +52,14 @@ export function PatientTable({
                   </button>
                 </th>
               ))}
-              <th className="whitespace-nowrap border-b border-slate-200 bg-slate-50 px-3 py-3 text-left font-extrabold text-slate-600">
+              <th className="sticky right-0 z-10 whitespace-nowrap border-b border-slate-200 bg-slate-50 px-3 py-3 text-left font-extrabold text-slate-600 shadow-[-8px_0_8px_-8px_rgba(15,23,42,0.35)]">
                 Действия
               </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((patient) => (
-              <tr key={patient.id} className="hover:bg-slate-50">
+              <tr key={patient.id} className="group hover:bg-slate-50">
                 <td className="max-w-[280px] border-b border-slate-200 px-3 py-3 font-black">
                   {patient.id}
                 </td>
@@ -90,7 +90,7 @@ export function PatientTable({
                     <Badge tone="slate">{LOCK_FREE}</Badge>
                   )}
                 </td>
-                <td className="border-b border-slate-200 px-3 py-3">
+                <td className="sticky right-0 z-10 border-b border-slate-200 bg-white px-3 py-3 shadow-[-8px_0_8px_-8px_rgba(15,23,42,0.35)] group-hover:bg-slate-50">
                   <div className="flex flex-wrap gap-2">
                     <Button variant="secondary" onClick={() => onOpen(patient.id)}>
                       Открыть

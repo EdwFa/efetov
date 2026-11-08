@@ -2,59 +2,76 @@ import { useEffect, useState } from "react";
 import { api } from "@/api/mock";
 import { tryApi } from "@/api/errors";
 import { useRuntime } from "@/api/useRuntime";
-import { CRF_BLOCK_ORDER } from "@/entities/crf/blocks";
 import { applyBmiToValues } from "@/entities/crf/computed";
-import { mergeBlock, withComputed } from "@/entities/crf/merge";
+import { mergeSection, withComputed } from "@/entities/crf/merge";
+import { sectionById, sectionLabel } from "@/entities/crf/sections";
 import {
   holdsLock,
   isLockedByOther,
   LOCK_FREE,
   lockOwnerId,
 } from "@/entities/patient/lock";
-import { canEditBlock, canViewBlock } from "@/entities/user/roles";
+import type { Patient } from "@/entities/patient/types";
+import { canEditSection, visibleSectionIds } from "@/entities/user/roles";
 import { useAuth } from "@/features/auth/useAuth";
+import { setUnsavedChanges } from "@/features/patient/unsaved";
 import { useToast } from "@/shared/ui/toast";
+
+function sectionValues(patient: Patient, sectionId: number): Record<string, string> {
+  const next: Record<string, string> = {};
+  withComputed(mergeSection(sectionId, patient.blocks)).forEach((field) => {
+    if (field.key) next[field.key] = field.value ?? "";
+  });
+  return next;
+}
 
 export function usePatientCard(id: string | undefined) {
   const { patients } = useRuntime();
   const { user } = useAuth();
   const { showToast } = useToast();
   const patient = patients.find((item) => item.id === id);
-  const visibleBlocks: string[] = CRF_BLOCK_ORDER.filter((block) =>
-    canViewBlock(user?.role, block)
+  const visibleSections = visibleSectionIds(user?.role);
+  const [activeSection, setActiveSection] = useState<number>(
+    visibleSections[0] ?? 1
   );
-  const [activeBlock, setActiveBlock] = useState<string>(
-    visibleBlocks[0] || "Общие данные"
-  );
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<number, Record<string, string>>>({});
   const [leaderEditOpen, setLeaderEditOpen] = useState(false);
 
-  const block = visibleBlocks.includes(activeBlock)
-    ? activeBlock
-    : visibleBlocks[0] || "Общие данные";
+  const sectionId = visibleSections.includes(activeSection)
+    ? activeSection
+    : visibleSections[0] ?? 1;
   const lockedByOther = isLockedByOther(patient?.lock, user?.id);
   const ownsLock = holdsLock(patient?.lock, user?.id);
   const lockOwner = lockOwnerId(patient?.lock);
-  const editable = canEditBlock(user?.role, block) && !lockedByOther;
+  const editable = canEditSection(user?.role, sectionId) && !lockedByOther;
   const fields = patient
-    ? withComputed(mergeBlock(block, patient.blocks[block] || []))
+    ? withComputed(mergeSection(sectionId, patient.blocks))
     : [];
+  const values = patient
+    ? drafts[sectionId] ?? sectionValues(patient, sectionId)
+    : {};
+  const canSave = Boolean(
+    user &&
+      patient &&
+      !lockedByOther &&
+      (editable ||
+        Object.keys(drafts).some((key) => canEditSection(user.role, Number(key))))
+  );
 
   useEffect(() => {
-    if (activeBlock !== block) setActiveBlock(block);
-  }, [activeBlock, block]);
+    setDrafts({});
+    setLeaderEditOpen(false);
+  }, [id]);
 
   useEffect(() => {
-    if (!patient) return;
-    const next: Record<string, string> = {};
-    withComputed(mergeBlock(block, patient.blocks[block] || [])).forEach(
-      (field) => {
-        next[field.name] = field.value ?? "";
-        if (field.key) next[field.key] = field.value ?? "";
-      }
-    );
-    setValues(next);
-  }, [patient, block]);
+    setUnsavedChanges(Object.keys(drafts).length > 0);
+  }, [drafts]);
+
+  useEffect(() => () => setUnsavedChanges(false), []);
+
+  useEffect(() => {
+    if (activeSection !== sectionId) setActiveSection(sectionId);
+  }, [activeSection, sectionId]);
 
   const creator =
     patient?.createdByLogin ||
@@ -62,23 +79,44 @@ export function usePatientCard(id: string | undefined) {
     patient?.createdBy ||
     "неизвестный пользователь";
 
+  const sectionsToSave = (): Record<number, Record<string, string>> => {
+    if (!user) return {};
+    const payload: Record<number, Record<string, string>> = {};
+    Object.entries(drafts).forEach(([key, draft]) => {
+      const section = Number(key);
+      if (canEditSection(user.role, section)) payload[section] = draft;
+    });
+    return payload;
+  };
+
   const applySave = async () => {
     if (!user || !patient) return;
-    const saved = await tryApi(
-      () => api.savePatientBlock(user, patient.id, block, values),
-      (error) => showToast(error.message)
-    );
-    if (!saved.ok) return;
-    setLeaderEditOpen(false);
-    showToast("Изменения сохранены в карточке пациента");
+    const payload = sectionsToSave();
+    if (Object.keys(payload).length === 0) {
+      showToast("Нет изменений для сохранения");
+      setLeaderEditOpen(false);
+      return;
+    }
+    try {
+      const saved = await tryApi(
+        () => api.savePatientSections(user, patient.id, payload),
+        (error) => showToast(error.message)
+      );
+      if (!saved.ok) return;
+      setDrafts({});
+      setLeaderEditOpen(false);
+      showToast("Изменения сохранены в карточке пациента");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Не удалось сохранить карточку");
+    }
   };
 
   const requestSave = () => {
-    if (!user || !patient || !editable) {
+    if (!user || !patient || !canSave) {
       showToast(
         lockedByOther
           ? `Карточка редактируется пользователем ${lockOwner}`
-          : "Редактирование блока недоступно"
+          : "Редактирование раздела недоступно"
       );
       return;
     }
@@ -109,10 +147,14 @@ export function usePatientCard(id: string | undefined) {
 
   return {
     patient,
-    block,
+    sectionId,
+    sectionLabel: sectionById(sectionId)
+      ? sectionLabel(sectionId)
+      : "Раздел",
     fields,
     values,
     editable,
+    canSave,
     lockedByOther,
     ownsLock,
     lockLabel: patient?.lock || LOCK_FREE,
@@ -124,14 +166,19 @@ export function usePatientCard(id: string | undefined) {
     ),
     creator,
     leaderEditOpen,
-    setActiveBlock,
-    setField: (name: string, value: string) =>
-      setValues((current) => {
-        const field = fields.find((item) => item.name === name);
-        const next = { ...current, [name]: value };
-        if (field?.key) next[field.key] = value;
-        return applyBmiToValues(next);
-      }),
+    setActiveSection,
+    setField: (key: string, value: string) => {
+      if (!patient || !canEditSection(user?.role, sectionId)) return;
+      setDrafts((current) => {
+        const base = current[sectionId] ?? sectionValues(patient, sectionId);
+        const next = { ...base, [key]: value };
+        const touchesAnthropometry = key === "height" || key === "weight";
+        return {
+          ...current,
+          [sectionId]: touchesAnthropometry ? applyBmiToValues(next) : next,
+        };
+      });
+    },
     requestSave,
     applySave,
     closeLeaderEdit: () => setLeaderEditOpen(false),

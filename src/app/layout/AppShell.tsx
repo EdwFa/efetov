@@ -13,7 +13,7 @@ export function AppShell() {
   return (
     <div className="flex min-h-screen">
       <IdleTimeout />
-      <aside className="hidden w-72 bg-slate-950 p-5 text-white lg:block">
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 overflow-y-auto bg-slate-950 p-5 text-white lg:block">
         <Sidebar />
       </aside>
       {mobileMenu ? (

@@ -11,19 +11,41 @@ export interface FileTreeNode {
   folders: Record<string, FileTreeNode>;
 }
 
-export function groupFiles(files: StoredFile[]): FileTreeNode {
-  const root: FileTreeNode = { files: [], folders: {} };
-  files.forEach((file) => {
-    const parts = file.folder
+export function listFolders(files: StoredFile[], extra: string[] = []): string[] {
+  const paths = new Set<string>();
+  const add = (path: string) => {
+    const acc: string[] = [];
+    path
       .split("/")
       .map((part) => part.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .forEach((part) => {
+        acc.push(part);
+        paths.add(acc.join(" / "));
+      });
+  };
+  extra.forEach(add);
+  files.forEach((file) => add(file.folder));
+  return [...paths].sort((left, right) => left.localeCompare(right, "ru"));
+}
+
+export function groupFiles(files: StoredFile[], folders: string[] = []): FileTreeNode {
+  const root: FileTreeNode = { files: [], folders: {} };
+  const ensure = (path: string) => {
     let node = root;
-    parts.forEach((part) => {
-      node.folders[part] = node.folders[part] || { files: [], folders: {} };
-      node = node.folders[part];
-    });
-    node.files.push(file);
+    path
+      .split("/")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        node.folders[part] = node.folders[part] || { files: [], folders: {} };
+        node = node.folders[part];
+      });
+    return node;
+  };
+  folders.forEach((path) => ensure(path));
+  files.forEach((file) => {
+    ensure(file.folder).files.push(file);
   });
   return root;
 }

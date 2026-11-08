@@ -8,8 +8,11 @@ import {
   useState,
 } from "react";
 import { api } from "@/api/mock";
+import { setUnauthorizedHandler } from "@/api/http";
 import { powers } from "@/entities/user/roles";
 import { ROLE_LABELS, type SessionUser } from "@/entities/user/types";
+import { hasUnsavedChanges } from "@/features/patient/unsaved";
+import { useToast } from "@/shared/ui/toast";
 import { loadSession, loadToken, saveSession, saveToken } from "./session";
 
 interface AuthContextValue {
@@ -20,6 +23,7 @@ interface AuthContextValue {
   login: (loginValue: string, password: string) => Promise<boolean>;
   quickLogin: (loginValue: string, password: string) => Promise<boolean>;
   logout: (reason?: "manual" | "idle") => void;
+  applyRole: (role: SessionUser["role"]) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -29,12 +33,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadToken() ? loadSession() : null
   );
   const [loginError, setLoginError] = useState("");
+  const { showToast } = useToast();
 
   const setCurrentUser = useCallback((next: SessionUser | null) => {
     setUser(next);
     saveSession(next);
     if (!next) saveToken(null);
   }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler((message) => {
+      const dirty = hasUnsavedChanges();
+      setCurrentUser(null);
+      setLoginError("");
+      if (message === "Нужна авторизация") return;
+      if (dirty && message.includes("неактивности")) {
+        showToast(
+          "Сессия завершена из-за неактивности (15 минут). Несохранённые изменения не записаны."
+        );
+        return;
+      }
+      showToast(message);
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [setCurrentUser, showToast]);
 
   useEffect(() => {
     if (user && loadToken()) {
@@ -50,37 +72,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [setCurrentUser]
   );
 
-  const login = useCallback(
+  const signIn = useCallback(
     async (loginValue: string, password: string) => {
-      const found = await api.authenticate(
-        loginValue,
-        password,
-        "Успешная аутентификация"
-      );
-      if (!found) {
-        setLoginError(
-          "Неверный логин или пароль. Используйте тестовые учетные записи из карточек ниже."
+      try {
+        const found = await api.authenticate(
+          loginValue,
+          password,
+          "Успешная аутентификация"
         );
+        if (!found) {
+          setLoginError("Неверный логин или пароль.");
+          return false;
+        }
+        loginWithUser(found);
+        return true;
+      } catch (error) {
+        setLoginError(error instanceof Error ? error.message : "Неверный логин или пароль.");
         return false;
       }
-      loginWithUser(found);
-      return true;
     },
     [loginWithUser]
   );
 
+  const login = useCallback(
+    (loginValue: string, password: string) => signIn(loginValue, password),
+    [signIn]
+  );
+
   const quickLogin = useCallback(
-    async (loginValue: string, password: string) => {
-      const found = await api.authenticate(
-        loginValue,
-        password,
-        "Быстрый вход в демо-прототип"
-      );
-      if (!found) return false;
-      loginWithUser(found);
-      return true;
+    (loginValue: string, password: string) => signIn(loginValue, password),
+    [signIn]
+  );
+
+  const applyRole = useCallback(
+    (role: SessionUser["role"]) => {
+      if (!user || user.role === role) return;
+      setCurrentUser({ ...user, role });
     },
-    [loginWithUser]
+    [setCurrentUser, user]
   );
 
   const logout = useCallback(
@@ -98,14 +127,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      roleName: user ? ROLE_LABELS[user.role] : "Не авторизован",
+      roleName: user ? ROLE_LABELS[user.role] ?? "Роль не назначена" : "Не авторизован",
       loginError,
       pwr: powers(user?.role),
       login,
       quickLogin,
       logout,
+      applyRole,
     }),
-    [user, loginError, login, quickLogin, logout]
+    [user, loginError, login, quickLogin, logout, applyRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
